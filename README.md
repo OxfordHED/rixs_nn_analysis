@@ -34,7 +34,7 @@ python -m end_to_end train data/training
 The default hyperparameters are generally well set. However, if you wish to override any, you can
 do so using CLI options. Simply run any command with `--help` to see a list of available options.
 
-Note that t
+Note that most code will write logs to the `runs` directory.
 ## Testing
 
 To run tests on step and end-to-end models respectively, run e.g. the following commands:
@@ -69,4 +69,4 @@ python -m plot figure-6
 
 ## Contributing
 
-This code is subject to the MIT license, read [the license](./LICENSE.txt) for details.
+This code is subject to the MIT license, read [the license](./LICENSE) for details.
