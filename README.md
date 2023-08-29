@@ -1,6 +1,6 @@
-# STEP: Extracting hidden Physics with interpretable and robust Machine Learning
+# STEP: Extracting underlying Physics with interpretable and robust Machine Learning
 
-This repository is the official implementation of "STEP: Extracting hidden Physics with interpretable and robust Machine Learning" submitted to NeurIPS 2023. 
+This repository is the official implementation of "STEP: Extracting underlying Physics with interpretable and robust Machine Learning". 
 
 
 ## Requirements
