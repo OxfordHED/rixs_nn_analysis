@@ -9,7 +9,7 @@ from scipy import interpolate
 import torch
 from torch import nn
 
-from diff_rixs import FunctionEstimator, SSP
+from diff_rixs import FunctionEstimator, SSP, Siren
 from .thermodynamics import ThermodynamicalProperties
 
 
@@ -216,6 +216,36 @@ class NeuralDoS(DensityOfStates):
 
         lower_energy = -100 if lower_energy is None else lower_energy
         upper_energy = 200 if upper_energy is None else upper_energy
+
+        def function(x):
+            x = (100 * x / (upper_energy - lower_energy)) - (lower_energy + upper_energy) / 2
+            return estimator(x)
+
+        density = function(energies.unsqueeze(1))[:, 0]
+
+        return cls(
+            estimator,
+            energies=energies,
+            density=density,
+            function=function,
+            lower_energy=lower_energy,
+            upper_energy=upper_energy,
+            already_vacant=already_vacant
+        )
+
+    @classmethod
+    def create_as_siren(
+        cls,
+        energies,
+        num_layers: int = 4,
+        num_hidden_units: int = 40,
+        lower_energy = None,
+        upper_energy = None,
+        already_vacant = True
+    ):
+        estimator = Siren(num_hidden_units=num_hidden_units, num_layers=num_layers)
+        lower_energy = -1 if lower_energy is None else lower_energy
+        upper_energy = 1 if upper_energy is None else upper_energy
 
         def function(x):
             x = (100 * x / (upper_energy - lower_energy)) - (lower_energy + upper_energy) / 2

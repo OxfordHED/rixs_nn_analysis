@@ -29,6 +29,7 @@ from physics_util import (
 @click.option("--learning-rate", "-lr", default=1e-3, help="Learning rate (1e-3).")
 @click.option("--loss", "-l", default="MSE", type=click.Choice(["MSE", "MAE"]), help="Loss function (MSE).")
 @click.option("--regularization", "-reg", default=0., help="Level of L2 reg. (0.).")
+@click.option("--siren/--no-siren", default=False)
 @click.argument("dataset", type=click.Path(exists=True))
 def train(**config):
     data_path = Path(config["dataset"])
@@ -57,7 +58,11 @@ def train(**config):
 
         energies = base_density.energies
 
-        neural_dos = NeuralDoS.create(energies)
+        neural_dos = (
+            NeuralDoS.create(energies)
+            if not config["siren"] else
+            NeuralDoS.create_as_siren(energies)
+        )
 
         # Won't be used for vacant fit but needs to be passed
         thermals = ThermodynamicalProperties.from_dos(

@@ -7,4 +7,5 @@ from .torch_components import (
     FullCrossSection,
     NoThermalBackpropCrossSection,
     VacantCrossSection,
+    Siren
 )

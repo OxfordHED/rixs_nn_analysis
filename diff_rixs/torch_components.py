@@ -4,6 +4,7 @@ Program for computing the forward diff_model to insert then in neural network co
 """
 from typing import Callable
 
+import numpy as np
 import torch  # for all things PyTorch
 from torch import nn  # for torch.nn.Module, PyTorch models
 import torch.nn.functional as F  # for the activation function
@@ -17,6 +18,36 @@ class SSP(nn.Softplus):
     def forward(self, input_val: torch.Tensor) -> torch.Tensor:
         sp0 = F.softplus(torch.zeros(1), self.beta, self.threshold).item()
         return F.softplus(input_val, self.beta, self.threshold) - sp0
+
+PREFACTOR_SINE = 30 # Paper uses 30
+
+# From https://arxiv.org/pdf/2006.09661.pdf
+class Sine(nn.Module):
+    def __init(self):
+        super().__init__()
+
+    def forward(self, input):
+        # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
+        return torch.sin(PREFACTOR_SINE * input)
+
+# From https://arxiv.org/pdf/2006.09661.pdf
+def sine_init(m):
+    with torch.no_grad():
+        if hasattr(m, 'weight'):
+            num_input = m.weight.size(-1)
+            # See supplement Sec. 1.5 for discussion of factor 30
+            m.weight.uniform_(
+                -np.sqrt(6 / num_input) / PREFACTOR_SINE,
+                np.sqrt(6 / num_input) / PREFACTOR_SINE
+            )
+
+# From https://arxiv.org/pdf/2006.09661.pdf
+def first_layer_sine_init(m):
+    with torch.no_grad():
+        if hasattr(m, 'weight'):
+            num_input = m.weight.size(-1)
+            # See paper sec. 3.2, final paragraph, and supplement Sec. 1.5 for discussion of factor 30
+            m.weight.uniform_(-1 / num_input, 1 / num_input)
 
 
 class FunctionEstimator(nn.Module):
@@ -41,6 +72,15 @@ class FunctionEstimator(nn.Module):
             x = self.activation(x)
         x = self.fc3(x)
         return x
+
+# From https://arxiv.org/pdf/2006.09661.pdf
+class Siren(FunctionEstimator):
+
+    def __init__(self, num_hidden_units: int = 40, num_layers: int = 4):
+        super().__init__(Sine(), num_hidden_units, num_layers)
+        self.fc1.apply(first_layer_sine_init)
+        self.fc2.apply(sine_init)
+        # self.fc3.apply(sine_init)
 
 
 class FullCrossSection(Function):
