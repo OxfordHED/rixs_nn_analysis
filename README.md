@@ -1,6 +1,5 @@
-# STEP: Extracting underlying Physics with interpretable and robust Machine Learning
-
-This repository is the official implementation of "STEP: Extracting underlying Physics with interpretable and robust Machine Learning". 
+# STEP: Interpretable Extraction of underlying Physics with robust Machine Learning
+This repository is the official implementation of "STEP: Interpretable Extraction of underlying Physics with robust Machine Learning". 
 
 
 ## Requirements
