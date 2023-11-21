@@ -126,7 +126,7 @@ def train(**config):
             history["loss"].append(float(epoch_loss))
             if epoch % log_interval == 0 and epoch > 0:
                 avg = (time.time() - start) / log_interval
-                print(f"Epoch {epoch}, t/it: {avg:.2f}s, best: {best_loss:.2e}")
+                print(f"Epoch {epoch}, t/it: {avg:.2f}s, current: {epoch_loss:.2e}, best: {best_loss:.2e}")
                 start = time.time()
 
         print(f"Best loss: {best_loss:.2e} at epoch {best_epoch}")
@@ -137,7 +137,7 @@ def train(**config):
         history["best_epoch"] = best_epoch
         with (out_path / f"history_{idx}.json").open("w", encoding="utf-8") as hist_file:
             json.dump(history, hist_file)
-        best_model.save(out_path / "neural_dos_" + idx + ".pt")
+        best_model.save(out_path / ("neural_dos_" + idx + ".pt"))
 
 
 if __name__ == '__main__':

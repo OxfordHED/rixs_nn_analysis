@@ -1,6 +1,6 @@
 import click
 from .train import train
-from .test import test
+from .eval import eval
 
 @click.group()
 def app():
@@ -8,7 +8,7 @@ def app():
 
 
 app.add_command(train)
-app.add_command(test)
+app.add_command(eval)
 
 if __name__ == "__main__":
     app()

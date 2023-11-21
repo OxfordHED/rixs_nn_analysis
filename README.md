@@ -34,12 +34,12 @@ The default hyperparameters are generally well set. However, if you wish to over
 do so using CLI options. Simply run any command with `--help` to see a list of available options.
 
 Note that most code will write logs to the `runs` directory.
-## Testing
+## Evaluation
 
-To run tests on step and end-to-end models respectively, run e.g. the following commands:
+To run evaluations on step and end-to-end models respectively, run e.g. the following commands:
 
 ```test
-python -m step test models/noise10/neural_dos_0.pt data/testing/density_of_states/dos_0.pkl
+python -m step eval models/noise10/neural_dos_0.pt data/testing/density_of_states/dos_0.pkl
 ```
 
 ```test

@@ -14,18 +14,22 @@ from physics_util import DensityOfStates, NeuralDoS, DEFAULT_TEMPERATURE, Materi
 @click.option("--loss", "-l", default="MSE", type=click.Choice(["MSE", "MAE"]), help="Loss function (MSE).")
 @click.argument("model", type=click.Path(exists=True))
 @click.argument("target", type=click.Path(exists=True))
-def test(model, target, loss):
+def eval(model, target, loss):
 
     material = Material.Fe2O3()
 
     base_dos = DensityOfStates.load(target)
-    neural_dos = NeuralDoS.load(model).vacant(DEFAULT_TEMPERATURE, material.density_per_unit_cell, base_dos=base_dos)
+    neural_dos = NeuralDoS.load(model).vacant(
+        DEFAULT_TEMPERATURE,
+        material.density_per_unit_cell,
+        base_dos=base_dos
+    )
     base_dos = base_dos.vacant(DEFAULT_TEMPERATURE, material.density_per_unit_cell)
 
 
     loss_fn = nn.MSELoss() if loss == "MSE" else nn.L1Loss()
 
-    assert torch.allclose(base_dos.energies, neural_dos.energies), "Can only compare two DoS on the same energy axis."
+    assert torch.allclose(base_dos.energies, neural_dos.energies), "Requires same energy axis."
 
     with torch.no_grad():
         loss = loss_fn(base_dos.density, neural_dos.function(neural_dos.energies[:, None])[:, 0])
@@ -36,4 +40,4 @@ def test(model, target, loss):
     plt.show()
 
 if __name__ == '__main__':
-    test()
+    eval()
