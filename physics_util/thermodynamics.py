@@ -16,7 +16,11 @@ class ThermodynamicalProperties:
     dos: object
 
     @staticmethod
-    def generic_thermal_factor(energy, chemical_potential, temperature):
+    def generic_thermal_factor(
+        energy: torch.Tensor | float,
+        chemical_potential: float,
+        temperature: float
+    ) -> torch.Tensor | float:
         """signal()
         Parameters
         ----------
@@ -32,7 +36,13 @@ class ThermodynamicalProperties:
         return 1.0 / (1 + np.exp((chemical_potential - energy) / temperature))
 
     @staticmethod
-    def chemical_potential_solver(temperature, chem_pot_guess, rho, dos, energies):
+    def chemical_potential_solver(
+        temperature: float,
+        chem_pot_guess: float,
+        rho: float,
+        dos: object,
+        energies: torch.Tensor
+    ) -> tuple[float, float]:
         """
         Parameters
         ----------
@@ -81,7 +91,42 @@ class ThermodynamicalProperties:
 
         return chem_pot_exit, error
 
-    def thermal_factor(self, energy):
+    @staticmethod
+    def fermi_energy_solver(dos: object, electron_density: float) -> float:
+        pass
+
+    @staticmethod
+    def chemical_potential_fit(temp: float, fermi_energy: float) -> float:
+
+        '''
+        Parameters
+        ----------
+        temp: temperature of the system
+        fermi_energy: fermi energy of the system
+
+
+        Returns
+        -------
+        Chemical potential approximation for the given fermi energy and temperature
+        '''
+
+        hartree = 27.211383
+
+        # uniform electron gas
+        # fermi_energy = hartree * 0.5 * (3 * np.pi ** 2 * electron_density) ** (2 / 3)
+
+        part_1 = -0.28468 - 1.5 * torch.log(temp / fermi_energy)
+
+        part_2_num = (
+            0.25945 * (temp / fermi_energy) ** -1.858
+            + 0.072 * (temp / fermi_energy) ** -0.929
+        )
+
+        part_2_denom = (1 + 0.25945 * (temp / fermi_energy) ** -0.858)
+
+        return part_1 + part_2_num / part_2_denom
+
+    def thermal_factor(self, energy: torch.Tensor | float) -> torch.Tensor | float:
         return ThermodynamicalProperties.generic_thermal_factor(
             energy, self.chemical_potential, self.temperature
         )
@@ -118,4 +163,28 @@ class ThermodynamicalProperties:
             chemical_potential=chemical_potential,
             chemical_potential_error=torch.tensor(error),
             dos=dos,
+        )
+
+    @classmethod
+    def from_dos_fit(
+        cls,
+        dos: object,
+        temperature: float,
+        electron_density: float,
+    ) -> ThermodynamicalProperties:
+        # This seperates out the fitting of the fermi energy from the chemical potential
+        fermi_energy = ThermodynamicalProperties.fermi_energy_solver(dos, electron_density)
+        chemical_potential = ThermodynamicalProperties.chemical_potential_fit(
+            temperature,
+            fermi_energy
+        )
+
+        chemical_potential = torch.tensor(chemical_potential)
+
+        return cls(
+            temperature=temperature,
+            electron_density=electron_density,
+            chemical_potential=chemical_potential,
+            chemical_potential_error=0.0,  # This is not accurate (there is a propagated error)
+            dos=dos
         )
