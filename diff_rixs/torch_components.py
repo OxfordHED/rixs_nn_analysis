@@ -9,6 +9,7 @@ import torch  # for all things PyTorch
 from torch import nn  # for torch.nn.Module, PyTorch models
 import torch.nn.functional as F  # for the activation function
 from torch.autograd import Function
+import matplotlib.pyplot as plt
 
 
 class SSP(nn.Softplus):
@@ -86,16 +87,17 @@ class Siren(FunctionEstimator):
 class FullCrossSection(Function):
     @staticmethod
     def forward(ctx, dos, oscillator_strengths, thermal_factors):
-        ctx.save_for_backward(oscillator_strengths, thermal_factors)
+        ctx.save_for_backward(oscillator_strengths, thermal_factors, dos)
         return torch.outer(thermal_factors * dos, oscillator_strengths)
 
     @staticmethod
     def backward(ctx, grad_output):
-        oscillator_strengths, thermal_factors = ctx.saved_tensors
+        oscillator_strengths, thermal_factors, dos = ctx.saved_tensors
 
         grad_inputs = thermal_factors * torch.mv(grad_output, oscillator_strengths)
 
-        return grad_inputs, None, None
+        grad_thermal = torch.mv(grad_output, oscillator_strengths)
+        return grad_inputs, None, grad_thermal
 
 
 class NoThermalBackpropCrossSection(FullCrossSection):

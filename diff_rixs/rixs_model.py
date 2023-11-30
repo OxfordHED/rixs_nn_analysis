@@ -35,6 +35,7 @@ class RIXSModel(nn.Module):
         vacant: bool = False,
         thermal_backprop: bool = False,
         lor_backprop: bool = False,
+        fit_temp: bool = False,
     ) -> None:
         super().__init__()
         self.material = material
@@ -69,6 +70,8 @@ class RIXSModel(nn.Module):
         self.thermal_factors = self.thermodynamic_props.thermal_factor(
             self._dos_energies
         )
+        # This flag will cause thermal factors to be regenerated for each forward pass
+        self._fit_temp = fit_temp
 
         self.lorentzians = torch.zeros(
             (self.material.num_transitions, self._full_energies.shape[0])
@@ -164,6 +167,11 @@ class RIXSModel(nn.Module):
         ), "Please initialize density of states before you continue"
         assert len(xfel_pulses.shape) == 2
         dos = self.dos(self.dos_energies[:, None]).squeeze()
+        # We need to regenerate thermal factors regularly to fit temperatures
+        if self._fit_temp:
+            self.thermal_factors = self.thermodynamic_props.thermal_factor(
+                self._dos_energies
+            )
         cross_sections = self.cross_section.apply(
             dos, self.material.oscillator_strengths, self.thermal_factors
         ).T.float()
@@ -194,6 +202,8 @@ class RIXSModel(nn.Module):
         )
 
         # We normalize to previous value of resolution 0.5 for backwards compat
-        return torch.matmul(self.output_map, high_res_spectrum.T).T * (
+        output = torch.matmul(self.output_map, high_res_spectrum.T).T * (
             self.resolution / 0.5
         )
+
+        return output

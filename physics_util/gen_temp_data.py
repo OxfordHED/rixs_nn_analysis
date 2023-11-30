@@ -27,18 +27,16 @@ def main():
     config = {"subsets": (4,)}
     data_path = Path("data") / "temperature"
     material = Material.Fe2O3()
-    base_density = DensityOfStates.load(data_path / "dos_0.pkl")
+    base_density = DensityOfStates.load(data_path / "dos.pkl")
 
     xfels = Spectra.load(data_path / "xfel_spectra.pkl").pick_subsets(config["subsets"])
-    rixs = (
-        Spectra.load(data_path / "rixs_0.pkl")
-        .pick_subsets(config["subsets"])
-    )
 
-    for t in range(10, 11):
-        thermals = ThermodynamicalProperties.from_dos(
+    for t in range(4, 11):
+        rixs = Spectra.load(data_path / "rixs_spectra" / f"rixs_temp_{t}.pkl")
+
+        thermals = ThermodynamicalProperties.from_fermi_energy(
             dos=base_density,
-            temperature=torch.tensor(t),
+            temperature=torch.tensor(t).float(),
             electron_density=material.density_per_unit_cell,
         )
 
@@ -55,18 +53,15 @@ def main():
 
         out_rixs = Spectra(
             energies=rixs.energies,
-            signal=out
+            signal=out.detach()
         )
 
-        out_rixs.save(data_path / f"rixs_temp_{t}.pkl")
+        out_rixs.save(data_path / "rixs_spectra" / f"rixs_temp_{t}.pkl")
 
-    plt.plot(model.dos_energies, base_density.function(model.dos_energies))
-    plt.show()
-
-    plt.plot(rixs.energies, rixs.signal()[0, :], label="original")
-    plt.plot(out_rixs.energies, out_rixs.signal()[0, :], label="new")
-    plt.legend()
-    plt.show()
+        plt.plot(rixs.energies, rixs.signal()[0, :], label="original")
+        plt.plot(out_rixs.energies, out_rixs.signal()[0, :], label="new")
+        plt.legend()
+        plt.show()
 
 if __name__ == '__main__':
     main()
