@@ -23,9 +23,11 @@ from physics_util import (
 )
 
 @click.command(help="Generate RIXS data at different temperatures")
-def main():
+@click.option("--chem-pot", "-cp", default="simple", type=click.Choice(["simple", "full"]))
+@click.argument("data_path", type=click.Path(exists=True))
+def main(chem_pot, data_path):
     config = {"subsets": (4,)}
-    data_path = Path("data") / "temperature"
+    data_path = Path(data_path)
     material = Material.Fe2O3()
     base_density = DensityOfStates.load(data_path / "dos.pkl")
 
@@ -34,11 +36,18 @@ def main():
     for t in range(4, 11):
         rixs = Spectra.load(data_path / "rixs_spectra" / f"rixs_temp_{t}.pkl")
 
-        thermals = ThermodynamicalProperties.from_fermi_energy(
-            dos=base_density,
-            temperature=torch.tensor(t).float(),
-            electron_density=material.density_per_unit_cell,
-        )
+        if chem_pot == "simple":
+            thermals = ThermodynamicalProperties.from_fermi_energy(
+                dos=base_density,
+                temperature=torch.tensor(t).float(),
+                electron_density=material.density_per_unit_cell,
+            )
+        else:
+            thermals = ThermodynamicalProperties.from_dos(
+                dos=base_density,
+                temperature=torch.tensor(t).float(),
+                electron_density=material.density_per_unit_cell,
+            )
 
         model = RIXSModel(
             dos_function=base_density.function,
