@@ -47,89 +47,90 @@ def train(**config):
 
     xfels = Spectra.load(data_path / "xfel_spectra.pkl").pick_subsets(config["subsets"])
     for t in true_temps:
-        print(f"Fitting temperature: {t} eV")
+        for k in range(5):
+            print(f"Fitting temperature: {t} eV")
 
-        fname = f"rixs_temp_{int(t)}.pkl"
-        rixs = (
-            Spectra.load(data_path / "rixs_spectra" / fname)
-            .noisy(config["noise"])
-        )
+            fname = f"rixs_temp_{int(t)}.pkl"
+            rixs = (
+                Spectra.load(data_path / "rixs_spectra" / fname)
+                .noisy(config["noise"])
+            )
 
-        base_density = DensityOfStates.load(data_path / "dos.pkl")
+            base_density = DensityOfStates.load(data_path / "dos.pkl")
 
-        thermals = ThermodynamicalProperties.from_fermi_energy(
-            dos=base_density,
-            temperature=2 + torch.rand(1)*8,
-            electron_density=material.density_per_unit_cell,
-        )
+            thermals = ThermodynamicalProperties.from_fermi_energy(
+                dos=base_density,
+                temperature=2 + torch.rand(1)*8,
+                electron_density=material.density_per_unit_cell,
+            )
 
-        model = RIXSModel(
-            dos_function=base_density.function,
-            dos_energies=base_density.energies,
-            material=material,
-            thermodynamic_props=thermals,
-            rixs_energies=rixs.energies,
-            xfel_energies=xfels.energies,
-            thermal_backprop=True,
-            fit_temp=True
-        )
-        loss_fn = nn.MSELoss() if config["loss"] == "MSE" else nn.L1Loss()
-        optimizer = optim.Adam(
-            [thermals.temperature],
-            lr=config["learning_rate"],
-            weight_decay=config["regularization"]
-        )
+            model = RIXSModel(
+                dos_function=base_density.function,
+                dos_energies=base_density.energies,
+                material=material,
+                thermodynamic_props=thermals,
+                rixs_energies=rixs.energies,
+                xfel_energies=xfels.energies,
+                thermal_backprop=True,
+                fit_temp=True
+            )
+            loss_fn = nn.MSELoss() if config["loss"] == "MSE" else nn.L1Loss()
+            optimizer = optim.Adam(
+                [thermals.temperature],
+                lr=config["learning_rate"],
+                weight_decay=config["regularization"]
+            )
 
-        samples_per_batch = config["batch_size"]
-        n_batches = len(xfels) // samples_per_batch
+            samples_per_batch = config["batch_size"]
+            n_batches = len(xfels) // samples_per_batch
 
-        best_loss = 1e6
-        best_temp = None
-        best_epoch = 0
+            best_loss = 1e6
+            best_temp = None
+            best_epoch = 0
 
-        history = {"loss": []}
+            history = {"loss": []}
 
-        log_interval = 10
-        start = time.time()
-        for epoch in range(config["epochs"]):
-            epoch_loss = 0
-            perm = torch.arange(len(xfels)).int()  # torch.randperm(len(xfels))
-            for i in range(n_batches):
-                optimizer.zero_grad()
-                out = model(
-                    xfels.signal()[perm][
-                    i * samples_per_batch: (i + 1) * samples_per_batch
-                    ]
-                )
-                loss = loss_fn(
-                    out,
-                    rixs.signal()[perm][
-                    i * samples_per_batch: (i + 1) * samples_per_batch, :],
-                )
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item()
-            if epoch_loss < best_loss:
-                with torch.no_grad():
-                    best_loss = epoch_loss
-                    best_epoch = epoch
-                    best_temp = thermals.temperature.detach().numpy()[0]
+            log_interval = 10
+            start = time.time()
+            for epoch in range(config["epochs"]):
+                epoch_loss = 0
+                perm = torch.randperm(len(xfels))
+                for i in range(n_batches):
+                    optimizer.zero_grad()
+                    out = model(
+                        xfels.signal()[perm][
+                        i * samples_per_batch: (i + 1) * samples_per_batch
+                        ]
+                    )
+                    loss = loss_fn(
+                        out,
+                        rixs.signal()[perm][
+                        i * samples_per_batch: (i + 1) * samples_per_batch, :],
+                    )
+                    loss.backward()
+                    optimizer.step()
+                    epoch_loss += loss.item()
+                if epoch_loss < best_loss:
+                    with torch.no_grad():
+                        best_loss = epoch_loss
+                        best_epoch = epoch
+                        best_temp = thermals.temperature.detach().numpy()[0]
 
-            history["loss"].append(float(epoch_loss))
-            if epoch % log_interval == 0 and epoch > 0:
-                avg = (time.time() - start) / log_interval
-                print(
-                    f"Epoch {epoch}, t/it: {avg:.2f}s, current: {epoch_loss:.2e}, best: {best_loss:.2e}, current T: {thermals.temperature[0]:.2e}eV, best T: {best_temp:.2e}eV"
-                )
-                start = time.time()
+                history["loss"].append(float(epoch_loss))
+                if epoch % log_interval == 0 and epoch > 0:
+                    avg = (time.time() - start) / log_interval
+                    print(
+                        f"Epoch {epoch}, t/it: {avg:.2f}s, current: {epoch_loss:.2e}, best: {best_loss:.2e}, current T: {thermals.temperature[0]:.2e}eV, best T: {best_temp:.2e}eV"
+                    )
+                    start = time.time()
 
-        print(f"Best loss: {best_loss:.2e} at epoch {best_epoch}")
+            print(f"Best loss: {best_loss:.2e} at epoch {best_epoch}")
 
-        history["best_loss"] = float(best_loss)
-        history["best_epoch"] = best_epoch
-        history["best_temp"] = float(best_temp)
-        with (out_path / f"history_{t}.json").open("w", encoding="utf-8") as hist_file:
-            json.dump(history, hist_file)
+            history["best_loss"] = float(best_loss)
+            history["best_epoch"] = best_epoch
+            history["best_temp"] = float(best_temp)
+            with (out_path / f"history_{t}_{k}.json").open("w", encoding="utf-8") as hist_file:
+                json.dump(history, hist_file)
 
 if __name__ == "__main__":
     train()
