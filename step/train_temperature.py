@@ -20,7 +20,7 @@ from physics_util import (
     DEFAULT_TEMPERATURE,
     Material,
     Spectra,
-    ThermodynamicalProperties
+    get_thermals
 )
 
 @click.command(help="Train the STEP estimator on a DoS.")
@@ -33,6 +33,7 @@ from physics_util import (
 @click.option("--regularization", "-reg", default=0., help="Level of L2 reg. (0.).")
 @click.argument("dataset", type=click.Path(exists=True))
 def train(**config):
+    torch.manual_seed(1)
     data_path = Path(config["dataset"])
     out_path = Path("runs") / ("step_train_temperature" + str(int(time.time())))
     out_path.mkdir(exist_ok=True)
@@ -58,10 +59,11 @@ def train(**config):
 
             base_density = DensityOfStates.load(data_path / "dos.pkl")
 
-            thermals = ThermodynamicalProperties.from_fermi_energy(
+            thermals = get_thermals(
                 dos=base_density,
                 temperature=2 + torch.rand(1)*8,
                 electron_density=material.density_per_unit_cell,
+                thermals_type="exact_differentiable"
             )
 
             model = RIXSModel(
@@ -129,6 +131,7 @@ def train(**config):
             history["best_loss"] = float(best_loss)
             history["best_epoch"] = best_epoch
             history["best_temp"] = float(best_temp)
+            history["true_temp"] = float(t)
             with (out_path / f"history_{t}_{k}.json").open("w", encoding="utf-8") as hist_file:
                 json.dump(history, hist_file)
 

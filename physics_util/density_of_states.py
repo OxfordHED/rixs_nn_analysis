@@ -10,7 +10,7 @@ import torch
 from torch import nn
 
 from diff_rixs import FunctionEstimator, SSP, Siren
-from .thermodynamics import ThermodynamicalProperties
+from .thermodynamics import get_thermals
 
 
 def gaussian(energy: np.ndarray, sigma: np.ndarray, mu_center: np.ndarray) -> Any:
@@ -90,7 +90,7 @@ class DensityOfStates:
                 where=np.heaviside(energy - sqrt_offset, 1),
             )
 
-            return out + sqrt_amplitude * sqrt_vals
+            return torch.tensor(out + sqrt_amplitude * sqrt_vals)
 
         return cls.from_function(energies, function)
 
@@ -145,11 +145,11 @@ class DensityOfStates:
         chemical_potential: torch.Tensor | None = None,
         base_dos: DensityOfStates | None = None  # well-behaved dos to find thermal factors
     ) -> DensityOfStates:
-        thermals = ThermodynamicalProperties.from_dos(
+        thermals = get_thermals(
             self if base_dos is None else base_dos,
             temperature=temperature,
             electron_density=density_per_unit_cell,
-            chemical_potential=chemical_potential,
+            kwargs={"chemical_potential": chemical_potential},
         )
 
         new_density = self.density * thermals.thermal_factor(self.energies).float()

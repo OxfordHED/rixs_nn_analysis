@@ -16,7 +16,7 @@ from physics_util import (
     DEFAULT_TEMPERATURE,
     Material,
     Spectra,
-    ThermodynamicalProperties
+    get_thermals
 )
 
 @click.command(help="Train the STEP estimator on a DoS.")
@@ -65,7 +65,7 @@ def train(**config):
         )
 
         # Won't be used for vacant fit but needs to be passed
-        thermals = ThermodynamicalProperties.from_dos(
+        thermals = get_thermals(
             dos=base_density,
             temperature=DEFAULT_TEMPERATURE,
             electron_density=material.density_per_unit_cell,

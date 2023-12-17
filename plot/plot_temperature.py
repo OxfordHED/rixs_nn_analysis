@@ -26,12 +26,7 @@ def formatters(color: str, alpha: float) -> dict[str, dict]:
         },
     }
 
-
-@click.command()
-def main():
-    run_path = Path("runs")
-
-    noise_level_str = "temp_n_0."
+def get_estimates(run_path: Path, noise_level_str: str) -> tuple[np.ndarray, np.ndarray]:
     all_estimates = []
 
     for noise in range(4):
@@ -45,31 +40,55 @@ def main():
                 iter_hist = temp_hist + str(j) + ".json"
                 with (noise_path / iter_hist).open("r", encoding="utf-8") as infile:
                     iter_data = json.load(infile)
-                    temp_estimates.append((iter_data["best_temp"] - temp) / temp)
+                    temp_estimates.append((iter_data["best_temp"]))#  - temp))  #  / temp)
             noise_estimates.append(temp_estimates)
         all_estimates.append(noise_estimates)
 
-    reduced_estimates = [
-        [np.mean(np.abs(temp_el)) for temp_el in noise_el]
-        for noise_el in all_estimates
-    ]
-    x_axis = np.array([[i * 10 + j - 3 for j in range(7)] for i in range(4)]).flatten()
+    return all_estimates
+
+@click.command()
+def main():
+    run_path = Path("runs")
+
+    x_axis, correct_est = get_estimates(run_path, "low_lr_temp_n_0.")
+    _, incorrect_est = get_estimates(run_path, "alt_temp_n_0.")
+
+
     plt.plot(
-        x_axis,
-        np.sort(np.array(reduced_estimates), axis=1).flatten(),
+        x_axis + 3.5,
+        np.array(correct_est).flatten(),  # np.sort(np.array(correct_est), axis=1).flatten(),
         "^",
         color="darkturquoise",
-        markeredgecolor="black"
+        markeredgecolor="black",
+        label="Correct model"
+    )
+    plt.plot(
+        x_axis - 3.5,
+        np.array(incorrect_est).flatten(),  # np.sort(, axis=1).flatten(),
+        "^",
+        color="sandybrown",
+        markeredgecolor="black",
+        label="Incorrect model"
     )
     plt.boxplot(
-        np.array(reduced_estimates).T,
-        positions=[i*10 for i in range(4)],
-        widths=7,
+        np.array(correct_est).T,
+        positions=[i*10 + 3.5 for i in range(4)],
+        widths=3,
         patch_artist=True,
         **formatters("darkturquoise", .3)
     )
+    plt.boxplot(
+        np.array(incorrect_est).T,
+        positions=[i*10 - 3.5 for i in range(4)],
+        widths=3,
+        patch_artist=True,
+        **formatters("sandybrown", .3)
+    )
     plt.xlabel(r"Noise ($\varepsilon$)")
-    plt.ylabel(r"MARE $\mathcal{L}(T, \tilde{T})$")
+    plt.ylabel(r"MAE $\mathcal{L}(T, \tilde{T})$")
+    plt.xticks(range(0, 40, 10), labels=[0, 0.1, 0.2, 0.3])
+    plt.legend()
+    # plt.yscale("log")
     plt.show()
 
 

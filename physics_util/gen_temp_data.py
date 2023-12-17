@@ -19,7 +19,7 @@ from physics_util import (
     DEFAULT_TEMPERATURE,
     Material,
     Spectra,
-    ThermodynamicalProperties
+    get_thermals
 )
 
 @click.command(help="Generate RIXS data at different temperatures")
@@ -36,18 +36,12 @@ def main(chem_pot, data_path):
     for t in range(4, 11):
         rixs = Spectra.load(data_path / "rixs_spectra" / f"rixs_temp_{t}.pkl")
 
-        if chem_pot == "simple":
-            thermals = ThermodynamicalProperties.from_fermi_energy(
-                dos=base_density,
-                temperature=torch.tensor(t).float(),
-                electron_density=material.density_per_unit_cell,
-            )
-        else:
-            thermals = ThermodynamicalProperties.from_dos(
-                dos=base_density,
-                temperature=torch.tensor(t).float(),
-                electron_density=material.density_per_unit_cell,
-            )
+        thermals = get_thermals(
+            base_density,
+            torch.tensor(t).float(),
+            material.density_per_unit_cell,
+            thermals_type=("approximate" if chem_pot == "simple" else "exact")
+        )
 
         model = RIXSModel(
             dos_function=base_density.function,

@@ -262,7 +262,7 @@ class ModBackpropLorentzianProduct(LorentzianProduct):
     Modified version of `LorentzianProduct` with Lorentzian factors switched off for backprop.
     """
     @staticmethod
-    def backward(ctx, grad_output: torch.Tensor) -> tupe[torch.Tensor]:
+    def backward(ctx, grad_output: torch.Tensor) -> tuple[torch.Tensor]:
         """Backwards pass through Lorentzian weighting. Lorentzian factors are set to unity to avoid
         vanishing gradients.
 
