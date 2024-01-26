@@ -52,7 +52,13 @@ class ThermodynamicalProperties:
         )
         return thermal_fac
 
-class ApproximateThermals(ThermodynamicalProperties):
+class FittedThermals(ThermodynamicalProperties):
+    params: list[float]
+
+    def __init__(self, *args, params=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.params = params
+
     @staticmethod
     def fermi_energy_solver(
         dos: object,
@@ -78,7 +84,7 @@ class ApproximateThermals(ThermodynamicalProperties):
         return torch.tensor(fermi_energy_exit).float()
 
     @staticmethod
-    def chemical_potential_fit(temp: float, fermi_energy: float) -> float:
+    def chemical_potential_fit(temp: float, fermi_energy: float, params: list[float]) -> float:
         '''
         Parameters
         ----------
@@ -93,24 +99,27 @@ class ApproximateThermals(ThermodynamicalProperties):
 
         # uniform electron gas
         # fermi_energy = hartree * 0.5 * (3 * np.pi ** 2 * electron_density) ** (2 / 3)
+        assert len(params) == 8, "Params object corrupted, regenerate thermals."
+        a, b, c, d, e, f, g, h = params
 
-        part_1 = -0.28468 - 1.5 * torch.log(temp / fermi_energy)
+        part_1 = a + b * torch.log(temp / fermi_energy)
 
         part_2_num = (
-            0.25945 * (temp / fermi_energy) ** (-1.858)
-            + 0.072 * (temp / fermi_energy) ** (-0.929)
+            c * (temp / fermi_energy) ** d
+            + e * (temp / fermi_energy) ** f
         )
 
-        part_2_denom = (1 + 0.25945 * (temp / fermi_energy) ** (-0.858))
+        part_2_denom = (1 + g * (temp / fermi_energy) ** h)
 
         eta = part_1 + part_2_num / part_2_denom
         return eta * temp
 
     @property
     def chemical_potential(self):
-        return ApproximateThermals.chemical_potential_fit(
+        return self.chemical_potential_fit(
             self.temperature,
-            self.fermi_energy.detach()
+            self.fermi_energy.detach(),
+            self.params
         )
 
     @classmethod
@@ -119,12 +128,36 @@ class ApproximateThermals(ThermodynamicalProperties):
         dos: object,
         temperature: float,
         electron_density: float,
+        fit_temps: np.ndarray[float] | None = None
     ) -> ThermodynamicalProperties:
         # This separates out the fitting of the fermi energy from the chemical potential
-        fermi_energy = ApproximateThermals.fermi_energy_solver(dos, electron_density)
-        chemical_potential = ApproximateThermals.chemical_potential_fit(
+        fermi_energy = FittedThermals.fermi_energy_solver(dos, electron_density)
+
+        if fit_temps is None:
+            fit_temps = np.arange(5., 15., 1.)
+
+        exact_mus = []
+        for t in fit_temps:
+            exact_mus.append(ExactThermals.chemical_potential_solver(
+                torch.tensor(t),
+                1.,
+                electron_density,
+                dos.density,
+                dos.energies
+            )[0])
+        exact_mus = torch.tensor(exact_mus).flatten()
+
+        def partial_mu_fit(temperature, *params):
+            return FittedThermals.chemical_potential_fit(temperature, fermi_energy, params)
+
+        initial_guess = [-0.28468, -1.5, 0.25945, -1.858, 0.072, -0.929, 0.25945, -0.858]
+
+        params, cov = optimize.curve_fit(partial_mu_fit, fit_temps, exact_mus, p0=initial_guess)
+
+        chemical_potential = FittedThermals.chemical_potential_fit(
             temperature,
-            fermi_energy
+            fermi_energy,
+            params
         )
 
         return cls(
@@ -133,7 +166,8 @@ class ApproximateThermals(ThermodynamicalProperties):
             _chemical_potential=chemical_potential,
             chemical_potential_error=0.0,  # This is not accurate (there is a propagated error)
             dos=dos,
-            fermi_energy=fermi_energy
+            fermi_energy=fermi_energy,
+            params=params,
         )
 
 
@@ -271,20 +305,22 @@ def get_thermals(
     """Factory to create different subclasses of ThermodynamicalProperties.
 
     Args:
-        dos:
-        temperature:
-        electron_density:
-        approximate:
-        kwargs:
+        dos: object, of type "DensityOfStates"
+        temperature: torch.Tensor, single float element, temperature in eV
+        electron_density: torch.Tensor, single float or double element, electron density per unit
+            cell.
+        thermals_type: str, may be "exact", "fitted", or "exact_differentiable"
+        kwargs: dict[str, object], kwargs to pass to `ThermodynamicalProperties.create()` call.
 
     Returns:
-
+        ThermodynamicalProperties, instantiated object for evaluating chemical potentials and
+            thermal factors.
     """
     if kwargs is None:
         kwargs = {}
-    assert thermals_type in ("exact", "approximate", "exact_differentiable")
-    if thermals_type == "approximate":
-        return ApproximateThermals.create(dos, temperature, electron_density, **kwargs)
+    assert thermals_type in ("exact", "fitted", "exact_differentiable")
+    if thermals_type == "fitted":
+        return FittedThermals.create(dos, temperature, electron_density, **kwargs)
     elif thermals_type == "exact_differentiable":
         return DifferentiableExactThermals.create(dos, temperature, electron_density, **kwargs)
     return ExactThermals.create(dos, temperature, electron_density, **kwargs)

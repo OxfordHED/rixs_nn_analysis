@@ -63,8 +63,10 @@ def train(**config):
                 dos=base_density,
                 temperature=2 + torch.rand(1)*8,
                 electron_density=material.density_per_unit_cell,
-                thermals_type="exact_differentiable"
+                thermals_type="fitted"
             )
+
+            print(thermals.params)
 
             model = RIXSModel(
                 dos_function=base_density.function,
@@ -122,7 +124,7 @@ def train(**config):
                 if epoch % log_interval == 0 and epoch > 0:
                     avg = (time.time() - start) / log_interval
                     print(
-                        f"Epoch {epoch}, t/it: {avg:.2f}s, current: {epoch_loss:.2e}, best: {best_loss:.2e}, current T: {thermals.temperature[0]:.2e}eV, best T: {best_temp:.2e}eV"
+                        f"T: {t}, r: {k}, E: {epoch}, t/it: {avg:.2f}s, curr.: {epoch_loss:.2e}, best: {best_loss:.2e}, curr. T: {thermals.temperature[0]:.2e}eV, best T: {best_temp:.2e}eV"
                     )
                     start = time.time()
 

@@ -33,8 +33,8 @@ def get_mean_std(estimates: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 if __name__ == "__main__":
     run_path = Path("runs")
     x = np.arange(4, 11, 1)
-    alt_model = get_estimates(run_path, "alt_temp_n_0.")
-    true_model = get_estimates(run_path, "low_lr_temp_n_0.")
+    alt_model = get_estimates(run_path, "temp_fit_n_0.")
+    true_model = get_estimates(run_path, "temp_solve_n_0.")
 
     alt_means, alt_stds = get_mean_std(alt_model)
     true_means, true_stds = get_mean_std(true_model)
@@ -45,22 +45,12 @@ if __name__ == "__main__":
         plt.sca(axes[i//2, i%2])
         plt.xlim(3, 11)
         plt.ylim(3, 11)
-        plt.plot([3, 11], [3, 11], "k--")
+        plt.plot([3, 11], [3, 11], "k--", label="Ground Truth")
         plt.title(f"Noise {i*10}%")
         if i // 2:
             plt.xlabel("T [eV]")
         if not i % 2:
             plt.ylabel(r"$\tilde{\rm T}$ [eV]")
-        plt.errorbar(
-            x,
-            alt_means[i],
-            yerr=alt_stds[i],
-            marker="x",
-            color="sandybrown",
-            ls="",
-            capsize=3,
-            label=r"Approximate $\mu$"
-        )
         plt.errorbar(
             x,
             true_means[i],
@@ -69,8 +59,18 @@ if __name__ == "__main__":
             color="darkturquoise",
             ls="",
             capsize=3,
-            label=r"Exact $\mu$"
+            label=r"STEP"
         )
+#        plt.errorbar(
+#            x,
+#            alt_means[i],
+#            yerr=alt_stds[i],
+#            marker="x",
+#            color="sandybrown",
+#            ls="",
+#            capsize=3,
+#            label=r"Fit $\mu$"
+#        )
         plt.text(10, 3.5, "(%s)" % "abcd"[i], fontweight=1000, fontsize=14)
         plt.legend()
     plt.tight_layout()
